@@ -8,6 +8,7 @@
 #include <stdexcept>
 #include <queue>
 #include <unordered_set>
+#include <sstream>
 
 namespace Grapix {
 
@@ -111,6 +112,8 @@ public:
         return m_originPath;
     }
 
+    virtual std::string toString() const { return "FileResolver"; };
+
 };
 
 class LinearFileResolver : public FileResolver {
@@ -139,6 +142,12 @@ public:
         }
     }
 
+    virtual std::string toString() const override {
+        std::ostringstream ss;
+        ss << "LinearFileResolver with path: " << m_originPath;
+        return ss.str();
+    }
+
 };
 
 
@@ -146,6 +155,52 @@ public:
 class RecursiveFileResolver : public FileResolver {
 private:
     int m_maxDepth;
+    int m_numIterations = 0;
+    int m_numVisitedFolders = 0;
+
+    static std::vector<std::filesystem::path> lsDirectories(const std::filesystem::path& currentPath) {
+
+        if (!std::filesystem::is_directory(currentPath)) {
+            throw FileSystemException("cannot list folders for a non-directory path");
+        }
+
+        std::vector<std::filesystem::path> result;
+        for (auto p : std::filesystem::directory_iterator(currentPath)) {
+            if (std::filesystem::is_directory(p) && !std::filesystem::is_empty(p)) {
+                result.push_back(p);
+            }
+        }
+
+        result.push_back(getTailPath(currentPath));
+
+        return result;
+    }
+
+    static std::filesystem::path getTailPath(const std::filesystem::path& currentPath) {
+        
+        if (currentPath.empty()) {
+            return std::filesystem::path{};
+        }
+        
+        auto end = currentPath.end();
+        end--;
+        std::filesystem::path result;
+
+        for (auto start = currentPath.begin(); start != end; start++) {
+            result /= *start;
+        }
+
+        return result;
+    }
+
+    static std::string getHead(const std::filesystem::path& currentPath) {
+        if (currentPath.empty()) {
+            return "";
+        }
+        auto end = currentPath.end();
+        end--;
+        return (*end).string();
+    }
 
 public:
     RecursiveFileResolver(const std::string& originDirectory, int maxDepth): m_maxDepth(maxDepth) {
@@ -153,27 +208,57 @@ public:
         std::string compiledPathStr = getCompiledPath();
         std::filesystem::path compiledPath(compiledPathStr);
 
-        std::queue<std::tuple<std::filesystem::path, bool, int>> exploredPaths;
-        std::tuple<std::filesystem::path, bool, int> root = std::make_tuple(compiledPath, true, 0);
+        std::queue<std::pair<std::filesystem::path, int>> exploredPaths;
+        std::pair<std::filesystem::path, int> root = std::make_pair(compiledPath, 0);
         exploredPaths.push(root);
 
         std::unordered_set<std::string> visitedFolders;
+        visitedFolders.insert(root.first.string());
 
+        bool found = false;
         while (!exploredPaths.empty()) {
-            auto v = exploredPaths.front();
+            auto currentPathTuple = exploredPaths.front();
             exploredPaths.pop();
 
-            SubPathBuilder currentPathBuilder(std::get<0>(v));
-
             //check if the current path is the goal
+            if (getHead(currentPathTuple.first) == originDirectory) {
+                found = true;
+                m_originPath = currentPathTuple.first;
+                break;
+            }
             
+            //reached maximum lookup depth
+            if (currentPathTuple.second >= maxDepth) {
+                continue;
+            }
 
             //find all outgoings ways that were not already visited (cd .. included if not root)
+            std::vector<std::filesystem::path> nextPaths = lsDirectories(currentPathTuple.first);
 
             //push all egdes on the queue
+            for (auto& nextPath : nextPaths) {
+                if (visitedFolders.find(nextPath.string()) == visitedFolders.end()) {
+                    visitedFolders.insert(nextPath.string());
+                    exploredPaths.push(std::make_pair(nextPath, currentPathTuple.second + 1));
+                }
+            }
 
+            m_numIterations++;
+        }
+        
+        m_numVisitedFolders = visitedFolders.size();
+
+        if (!found) {
+            throw FileSystemException("failed to find the origin path!");
         }
 
+    }
+
+    virtual std::string toString() const override {
+        std::ostringstream ss;
+        ss << "RecursiveFileResolver with path: " << m_originPath;
+        ss << "\n" << "terminated in " << m_numIterations << " iterations and visited " << m_numVisitedFolders << " folders";
+        return ss.str();
     }
 
 };
@@ -188,6 +273,12 @@ public:
     static FileResolver makeRecursiveResolver(const std::string& originDirectory, int maxDepth = 5) {
         return RecursiveFileResolver(originDirectory, maxDepth);
     }
+
+    static FileResolver* makeRecursiveResolverPtr(const std::string& originDirectory, int maxDepth = 5) {
+        return new RecursiveFileResolver(originDirectory, maxDepth);
+    }
+
+
 };
 
 
