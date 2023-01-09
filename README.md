@@ -34,7 +34,7 @@ Given the following `tree` command output:
 └── tests.cpp
 ```
 
-The following piece of code would create the file resolver.
+The following piece of code would create the file resolver with target folder `folder2`. 
 
 ```
 Grapix::FileResolver resolver = Grapix::FileResolverFactory::makeRecursiveResolver("folder2");
