@@ -12,10 +12,10 @@
 
 namespace Grapix {
 
-class FileSystemException : public std::runtime_error {
+class FileResolverException : public std::runtime_error {
 public:
     /// Variadic template constructor to support printf-style arguments
-    template <typename... Args> FileSystemException(const char *fmt) 
+    template <typename... Args> FileResolverException(const char *fmt) 
      : std::runtime_error(fmt) { }
 };
 
@@ -40,7 +40,7 @@ public:
 
     void previous() {
         if (m_currentHead == 0) {
-            throw FileSystemException("path cannot be empty !");
+            throw FileResolverException("path cannot be empty !");
         }
         std::filesystem::path nextPath;
         m_currentHead--;
@@ -52,7 +52,7 @@ public:
 
     void next() {
         if (m_currentHead == m_pathElements.size() - 1) {
-            throw FileSystemException("path is already full !");
+            throw FileResolverException("path is already full !");
         }
         std::filesystem::path nextPath;
         m_currentHead++;
@@ -94,7 +94,7 @@ public:
     virtual std::string getAbsolute(const std::string& relativePathStr) const {
         std::filesystem::path relativePath (relativePathStr);
         if (relativePath.is_absolute()) {
-            throw FileSystemException("getAbsolute requires a relative path");
+            throw FileResolverException("getAbsolute requires a relative path");
         }
         return m_originPath / relativePath;
     }
@@ -138,7 +138,7 @@ public:
         }
 
         if (!found) {
-            throw FileSystemException("failed to find the origin path!");
+            throw FileResolverException("failed to find the origin path!");
         }
     }
 
@@ -151,17 +151,27 @@ public:
 };
 
 
-
+/**
+ * @brief This resolver will perform a breath-first-search over the files of the project. It will discover until maxDepth
+ * and will throw a FileResolverException if the origin folder wasn't found.
+ */
 class RecursiveFileResolver : public FileResolver {
 private:
     int m_maxDepth;
     int m_numIterations = 0;
     int m_numVisitedFolders = 0;
 
+    /**
+     * @brief return all the paths to folders from the currentPath. In addition an entry to the tail path (cd ..)
+     * is also added
+     * 
+     * @param currentPath 
+     * @return std::filesystem::path 
+     */
     static std::vector<std::filesystem::path> lsDirectories(const std::filesystem::path& currentPath) {
 
         if (!std::filesystem::is_directory(currentPath)) {
-            throw FileSystemException("cannot list folders for a non-directory path");
+            throw FileResolverException("cannot list folders for a non-directory path");
         }
 
         std::vector<std::filesystem::path> result;
@@ -176,6 +186,12 @@ private:
         return result;
     }
 
+    /**
+     * @brief returns the same std::filesystem::path without the head
+     * 
+     * @param currentPath 
+     * @return std::filesystem::path 
+     */
     static std::filesystem::path getTailPath(const std::filesystem::path& currentPath) {
         
         if (currentPath.empty()) {
@@ -193,6 +209,12 @@ private:
         return result;
     }
 
+    /**
+     * @brief returns the head of a std::filesystem::path
+     * 
+     * @param currentPath 
+     * @return std::string 
+     */
     static std::string getHead(const std::filesystem::path& currentPath) {
         if (currentPath.empty()) {
             return "";
@@ -249,7 +271,7 @@ public:
         m_numVisitedFolders = visitedFolders.size();
 
         if (!found) {
-            throw FileSystemException("failed to find the origin path!");
+            throw FileResolverException("failed to find the origin path!");
         }
 
     }
@@ -267,9 +289,15 @@ class FileResolverFactory {
 private:
     FileResolverFactory() {}
 public:
+    
     static FileResolver makeLinearResolver(const std::string& originDirectory) {
         return LinearFileResolver(originDirectory);
     }
+
+    static FileResolver* makeLinearResolverPtr(const std::string& originDirectory) {
+        return new LinearFileResolver(originDirectory);
+    }
+    
     static FileResolver makeRecursiveResolver(const std::string& originDirectory, int maxDepth = 5) {
         return RecursiveFileResolver(originDirectory, maxDepth);
     }
@@ -277,7 +305,6 @@ public:
     static FileResolver* makeRecursiveResolverPtr(const std::string& originDirectory, int maxDepth = 5) {
         return new RecursiveFileResolver(originDirectory, maxDepth);
     }
-
 
 };
 
