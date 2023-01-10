@@ -2,6 +2,8 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
+![example event parameter](https://github.com/github/docs/actions/workflows/main.yml/badge.svg?event=push)
+
 Small and minimal API to lookup path. Managing path when opening and writing to files can be annoying in c++. This small library provides a way to define a new origin directory and to make subsequent path query relatively to this origin directory. Usually, the path are relatives to where you call your binary. This may couple your source code with the location you must start your program from. Having an abstraction that defines a unique origin directory can help in some cases. This is what NanoFileResolver is trying to offer.
 
 
