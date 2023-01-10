@@ -11,17 +11,29 @@ std::cout << "Elapse to find the folder " << FOLDER << " = " << std::chrono::dur
 
 
 int main(int, char**) {
-    
-    STARTTIMING
-        //simple linear resolver. Will iterate back to the root directory to find the origin target directory
-        //from which it operates
-        
-        /*printf("linear file resolver:\n");
-        Grapix::FileResolver resolver = Grapix::FileResolverFactory::makeLinearResolver("filesystem");
-        printf("--> origin path %s\n", resolver.getOriginPath().c_str());
-        printf("--> absolute to file1 %s\n", resolver.getAbsolute("tests/folder1/file1").c_str());
-        printf("tostring: %s\n", resolver.toString().c_str());*/
-    ENDTIMING("filesystem")
+
+    //  ├── CMakeLists.txt
+    //  ├── include
+    //  │   └── fileresolver.hpp
+    //  ├── LICENSE
+    //  ├── demo.cpp
+    //  ├── README.md
+    //  ├── tests
+    //  │   ├── folder1
+    //  │   │   ├── file1
+    //  │   │   └── file2
+    //  │   └── folder2
+    //  │       ├── file3
+    //  │       ├── sub1
+    //  │       │   └── sub1.txt
+    //  │       ├── sub2
+    //  │       │   └── sub2.txt
+    //  │       └── sub3
+    //  │           ├── sub3.txt
+    //  │           └── sub4
+    //  │               └── myfile
+    //  └── tests.cpp
+
 
     STARTTIMING
         printf("recursive file resolver:\n");
